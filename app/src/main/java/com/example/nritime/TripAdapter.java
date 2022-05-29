@@ -29,11 +29,15 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
         this.trips = trips;
     }
 
+    public void setTrips(ArrayList<Trip> trips) {
+        this.trips = trips;
+    }
+
     @NonNull
     @Override
     public TripViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.trip, parent, false);
-        TripViewHolder tripViewHolder = new TripViewHolder(v);
+        TripViewHolder tripViewHolder = new TripViewHolder(v, onItemClickListener);
         return tripViewHolder;
     }
 
@@ -60,10 +64,22 @@ public class TripAdapter extends RecyclerView.Adapter<TripAdapter.TripViewHolder
 
         public TextView tripDate, tripTime;
 
-        public TripViewHolder(@NonNull View itemView) {
+        public TripViewHolder(@NonNull View itemView, OnItemClickListener listener) {
             super(itemView);
             tripDate = itemView.findViewById(R.id.trip_date);
             tripTime = itemView.findViewById(R.id.trip_time);
+
+            itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    if(listener != null){
+                        int position = getAdapterPosition();
+                        if(position != RecyclerView.NO_POSITION){
+                            listener.onItemClick(position);
+                        }
+                    }
+                }
+            });
         }
     }
 }

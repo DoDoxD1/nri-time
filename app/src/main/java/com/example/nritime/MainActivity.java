@@ -1,15 +1,19 @@
  package com.example.nritime;
 
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.app.DatePickerDialog;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.DatePicker;
@@ -23,11 +27,14 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 
- public class MainActivity extends AppCompatActivity {
+ public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
      private RecyclerView recyclerView;
      private TextView daysTextView, daysLeftTextView;
@@ -36,6 +43,8 @@ import java.util.Date;
      private Button addTripButton, saveTripButton, cancelButton;
 
      String startDate="", endDate="";
+
+     private long maxTime = 0, minTime = 0;
 
      private DatePickerDialog.OnDateSetListener setListener;
 
@@ -70,6 +79,7 @@ import java.util.Date;
                 this,android.R.layout.simple_spinner_dropdown_item,
                 getResources().getStringArray(R.array.fy_list));
         spinner.setAdapter(arrayAdapter);
+        spinner.setOnItemSelectedListener(this);
 
         Trip trip = new Trip("13 02 2222","26 02 2222");
         Trip trip1 = new Trip("13 02 2222","26 03 2222");
@@ -84,6 +94,30 @@ import java.util.Date;
         tripAdapter = new TripAdapter(trips);
         recyclerView.setLayoutManager(linearLayoutManager);
         recyclerView.setAdapter(tripAdapter);
+
+        updateActiveTrips();
+
+        tripAdapter.setOnItemClickListener(new TripAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(int position) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Delete trip")
+                        .setMessage("Are you sure you want to delete this trip?")
+
+                        .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                trips.remove(position);
+                                tripAdapter.notifyDataSetChanged();
+                                updateTextFields();
+                                saveData();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, null)
+                        .setIcon(android.R.drawable.ic_dialog_alert)
+                        .show();
+
+            }
+        });
 
         textView1.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -109,14 +143,9 @@ import java.util.Date;
                         textView1.setText(date);
                     }
                 },year,month,day);
-                datePickerDialog.getDatePicker().setMaxDate(calendar.getTimeInMillis());
-                Date date = null;
-                try {
-                    date = new SimpleDateFormat("dd MM yyyy").parse("01 04 2021");
-                } catch (ParseException e) {
-                    e.printStackTrace();
-                }
-                datePickerDialog.getDatePicker().setMinDate(date.getTime());
+
+                datePickerDialog.getDatePicker().setMaxDate(maxTime);
+                datePickerDialog.getDatePicker().setMinDate(minTime);
                 datePickerDialog.show();
             }
         });
@@ -145,7 +174,11 @@ import java.util.Date;
                         textView2.setText(date);
                     }
                 },year,month,day);
-                datePickerDialog.getDatePicker().setMaxDate(calendar.getTimeInMillis());
+                if(startDate.isEmpty()){
+                    Toast.makeText(MainActivity.this, "Select starting date first!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                datePickerDialog.getDatePicker().setMaxDate(maxTime);
                 Date date = null;
                 try {
                     date = new SimpleDateFormat("dd MM yyyy").parse(startDate);
@@ -181,6 +214,8 @@ import java.util.Date;
                 textView.setVisibility(View.GONE);
                 textView1.setVisibility(View.GONE);
                 textView2.setVisibility(View.GONE);
+                textView1.setText("Choose fly in");
+                textView2.setText("Choose fly out: Active");
                 saveTripButton.setVisibility(View.GONE);
                 cancelButton.setVisibility(View.GONE);
                 addTripButton.setVisibility(View.VISIBLE);
@@ -204,6 +239,20 @@ import java.util.Date;
             }
         });
     }
+
+     @RequiresApi(api = Build.VERSION_CODES.O)
+     private void updateActiveTrips() {
+         for (Trip trip :
+                 trips) {
+             if (trip.isActive) {
+                 SimpleDateFormat df = new SimpleDateFormat("dd MM yyyy", Locale.getDefault());
+                 trip.setEndDate(df.format(Calendar.getInstance().getTime()));
+                 updateTextFields();
+                 saveData();
+                 tripAdapter.notifyDataSetChanged();
+             }
+         }
+     }
 
      private void saveData() {
          SharedPreferences sharedPreferences = getSharedPreferences("Trips",MODE_PRIVATE);
@@ -237,6 +286,63 @@ import java.util.Date;
          nriDaysLeftStr = (183-nriDays) + " More days needed";
          daysTextView.setText(nriDaysStr);
          daysLeftTextView.setText(nriDaysLeftStr);
+
+     }
+
+     @RequiresApi(api = Build.VERSION_CODES.O)
+     @Override
+     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+        String startYearStr = adapterView.getItemAtPosition(i).toString().substring(3,7);
+        int startYear = Integer.parseInt(startYearStr);
+        String startDate = "01 04 "+startYearStr;
+         Date date = new Date();
+         try {
+             date = new SimpleDateFormat("dd MM yyyy").parse(startDate);
+         } catch (ParseException e) {
+             e.printStackTrace();
+         }
+         minTime = date.getTime();
+         date = new Date();
+         Log.i("aunu", "onItemSelected: "+(date.getYear()+1900)+startYear);
+         if((date.getYear()+1900)==startYear){
+             maxTime = Calendar.getInstance().getTimeInMillis();
+         }
+         else {
+             startYear +=1;
+             startDate = "31 03 "+startYear;
+             Log.i("aunu", "onItemSelected: "+startDate);
+             try {
+                 date = new SimpleDateFormat("dd MM yyyy").parse(startDate);
+             } catch (ParseException e) {
+                 e.printStackTrace();
+             }
+             maxTime = date.getTime();
+         }
+//         filterTrips(startYearStr);
+     }
+
+     @RequiresApi(api = Build.VERSION_CODES.O)
+     private void filterTrips(String startYearStr) {
+
+        String startStr = "01 04 "+startYearStr;
+        int temp = Integer.parseInt(startYearStr)+1;
+        String endStr = "31 03 "+temp;
+        ArrayList<Trip> tempTrip = new ArrayList<>();
+        LocalDate yearStart = LocalDate.parse(startStr, DateTimeFormatter.ofPattern("dd MM yyyy"));
+        LocalDate yearEnd = LocalDate.parse(endStr, DateTimeFormatter.ofPattern("dd MM yyyy"));
+         for (Trip trip :
+                 trips) {
+             int starCompare = trip.startDate.compareTo(yearStart);
+             int endCompare = trip.endDate.compareTo(yearEnd);
+             if(starCompare>=0&&endCompare<=0){
+                 tempTrip.add(trip);
+             }
+         }
+         tripAdapter.setTrips(tempTrip);
+     }
+
+     @Override
+     public void onNothingSelected(AdapterView<?> adapterView) {
 
      }
  }

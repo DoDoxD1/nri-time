@@ -50,8 +50,8 @@ public class Trip {
         return endDate;
     }
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
+    public void setEndDate(String endDateStr) {
+        this.endDate = LocalDate.parse(endDateStr, DateTimeFormatter.ofPattern("dd MM yyyy"));
     }
 
     public long getDays(){
